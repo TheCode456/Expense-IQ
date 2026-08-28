@@ -6,6 +6,8 @@ from utils.file_handler import change_savings, read_json, update_user_threshold,
 from utils.date_calculator import *
 from tkinter import messagebox
 
+# callback holder for transactions delete action (set when transactions_tab is rendered)
+current_delete_transaction = None
 def clear_content(frame):
     for widget in frame.winfo_children():
         widget.destroy()
@@ -247,6 +249,11 @@ def transactions_tab(content_frame,user):
             fill_topbar(user,topbar)
             messagebox.showinfo("Deleted",f"Transaction Deleted successfully\nid:{uid}")
             transactions_tab(content_frame,user)
+
+
+        # expose delete action for global keybinds
+        global current_delete_transaction
+        current_delete_transaction = lambda: delete_transaction(user)
 
 
         del_btn=ctk.CTkButton(content_frame,text="Delete ⮾",width=150,height=45,corner_radius=10,fg_color=DANGER,hover_color=WARNING,bg_color=DARK["card"],text_color=DARK["border"],command=lambda: delete_transaction(user))
@@ -761,6 +768,24 @@ def main_ui(username,theme,login,remember):
 
     centered_window(root,1280,720)
     root._set_appearance_mode(theme)
+    # active tab tracking for context-aware keybinds
+    #####################################################################
+    active_tab = "dashboard"
+    def switch_tab(tab_name, callback):
+        nonlocal active_tab
+        active_tab = tab_name
+        callback(content_frame, username)
+        # if overlay is currently visible, refresh its highlight to reflect new active tab
+        try:
+            if overlay_bg.winfo_viewable():
+                try:
+                    highlight_active()
+                except NameError:
+                    pass
+        except NameError:
+            # overlay not created yet
+            pass
+        
     ####### SIDEBAR ######################################################################################
     sidebar=ctk.CTkFrame(root,width=200,border_color=BLUE_BORDER,fg_color=(LIGHT["frame"],DARK["frame"]))
     sidebar.pack(side="left",fill="y")
@@ -768,9 +793,9 @@ def main_ui(username,theme,login,remember):
     #------ SIDEBAR BUTTONS ------------------------------------------------------------------------------
     today=ctk.CTkLabel(sidebar,text=str(get_today()),font=(fontfamily,20,"bold"),fg_color="transparent")
     day=ctk.CTkLabel(sidebar,text=str(get_weekday_formatted()),font=(fontfamily,16,"bold"),fg_color="transparent")
-    dashboard=ctk.CTkButton(sidebar,text="Dashboard",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45,command=lambda:Dashboard(content_frame,username))
-    transaction=ctk.CTkButton(sidebar,text="Transaction",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45,command=lambda:transactions_tab(content_frame,username))
-    budget=ctk.CTkButton(sidebar,text="Budget",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45,command=lambda:budget_tab(content_frame,username))
+    dashboard=ctk.CTkButton(sidebar,text="Dashboard",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45,command=lambda: switch_tab('dashboard', Dashboard))
+    transaction=ctk.CTkButton(sidebar,text="Transaction",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45,command=lambda: switch_tab('transactions', transactions_tab))
+    budget=ctk.CTkButton(sidebar,text="Budget",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45,command=lambda: switch_tab('budget', budget_tab))
     analytics=ctk.CTkButton(sidebar,text="Analytics",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45)
     settings=ctk.CTkButton(sidebar,text="Settings",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DARK["border"],corner_radius=10,border_color=PRIMARY_HOVER,border_width=1,height=45,command=lambda:setting(content_frame,username))
     logout=ctk.CTkButton(sidebar,text="Logout",font=(fontfamily,24,"bold"),fg_color=DARK["card"],hover_color=DANGER,corner_radius=10,border_color=RED_BORDER,border_width=1,height=45,command=lambda:[root.quit(),root.after(10,quit())]) # used quit instead of destroy to quit safely
@@ -794,16 +819,98 @@ def main_ui(username,theme,login,remember):
     content_frame=ctk.CTkFrame(root,border_color=BLUE_BORDER,fg_color=(LIGHT["frame"],DARK["frame"]))
     content_frame.pack(expand=True,fill="both",padx=20,pady=20)
 
-    Dashboard(content_frame,username)
+    # render initial dashboard via the switch wrapper so active_tab is correct
+    switch_tab('dashboard', Dashboard)
 
-    # keybinds
-    root.bind("<Control-b>", lambda e: budget_tab(content_frame, username))
-    root.bind("<Control-t>", lambda e: transactions_tab(content_frame, username))
-    root.bind("<Control-d>", lambda e: Dashboard(content_frame, username))
+    # keybinds and overlay (context-aware)
+    root.bind("<Control-b>", lambda e: switch_tab('budget', budget_tab))
+    root.bind("<Control-t>", lambda e: switch_tab('transactions', transactions_tab))
+    root.bind("<Control-d>", lambda e: switch_tab('dashboard', Dashboard))
     root.bind("<Control-w>", lambda e: [root.quit(), root.after(10, quit())])
-    root.bind("<Control-B>", lambda e: budget_tab(content_frame, username))
-    root.bind("<Control-T>", lambda e: transactions_tab(content_frame, username))
-    root.bind("<Control-D>", lambda e: Dashboard(content_frame, username))
+    root.bind("<Control-B>", lambda e: switch_tab('budget', budget_tab))
+    root.bind("<Control-T>", lambda e: switch_tab('transactions', transactions_tab))
+    root.bind("<Control-D>", lambda e: switch_tab('dashboard', Dashboard))
     root.bind("<Control-W>", lambda e: [root.quit(), root.after(10, quit())])
+
+    # overlay as a full-size Frame (single-window approach)
+    overlay_bg = ctk.CTkFrame(root, fg_color="#000000")
+    overlay_bg.place_forget()
+
+    # simulate translucency by using a dark background with lowered visual weight
+    try:
+        overlay_bg.configure(fg_color=("#000000", DARK["bg"]))
+    except Exception:
+        overlay_bg.configure(fg_color="#000000")
+
+    overlay_card = ctk.CTkFrame(overlay_bg, fg_color=DARK["card"], corner_radius=16, border_width=1, border_color=DARK["border"]) 
+    # center card inside overlay
+    overlay_card.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.6, relheight=0.7)
+
+    # section labels mapping for dynamic highlighting
+    overlay_labels = {}
+
+    def build_overlay_contents():
+        for w in overlay_card.winfo_children():
+            w.destroy()
+        title = ctk.CTkLabel(overlay_card, text="Keybinds", font=(fontfamily,24,"bold"), text_color=PRIMARY)
+        title.pack(pady=(12,6))
+
+        sections = {
+            'global': [("Dashboard", "Ctrl D"), ("Transactions", "Ctrl T"), ("Budget", "Ctrl B"), ("Settings", "Ctrl S"), ("Logout", "Ctrl W")],
+            'transactions': [("New Transaction", "Ctrl N"), ("Delete Selected", "Ctrl Delete")],
+            'budget': [("Edit Budget", "Ctrl E"), ("Update Threshold", "Ctrl U")],
+            'settings': [("Reset Data", "Ctrl R"), ("Show Login", "Ctrl F")]
+        }
+
+        def make_section(name, items):
+            frm = ctk.CTkFrame(overlay_card, fg_color="transparent")
+            frm.pack(fill="x", padx=20, pady=6)
+            hdr = ctk.CTkLabel(frm, text=name.title() + "", font=(fontfamily,18,"bold"))
+            hdr.pack(anchor="w")
+            overlay_labels[name] = hdr
+            for it in items:
+                row = ctk.CTkFrame(frm, fg_color="transparent")
+                row.pack(fill="x", pady=2)
+                ctk.CTkLabel(row, text=it[0], font=(fontfamily,14)).pack(side="left", anchor="w")
+                ctk.CTkLabel(row, text=it[1], font=(fontfamily,14), fg_color=DARK["card"], corner_radius=8).pack(side="right")
+
+        make_section("global", sections['global'])
+        make_section("transactions", sections['transactions'])
+        make_section("budget", sections['budget'])
+        # make_section("settings", sections['settings'])
+
+    def highlight_active():
+        # reset
+        for name, lbl in overlay_labels.items():
+            lbl.configure(text_color=DARK["text"], fg_color="transparent")
+        # highlight current (map dashboard -> global group)
+        map_name = 'global' if active_tab == 'dashboard' else active_tab
+        if map_name in overlay_labels:
+            overlay_labels[map_name].configure(text_color=PRIMARY, fg_color=DARK["card_hover"]) 
+
+    def toggle_overlay(event=None):
+        # show as a translucent top-level sized to the main window
+        if overlay_bg.place_info():
+            overlay_bg.place_forget()
+        else:
+            # show overlay sized to root (single-window) and lift it above other widgets
+            root.update_idletasks()
+            overlay_bg.place(relx=0, rely=0, relwidth=1, relheight=1)
+            overlay_bg.lift()
+            build_overlay_contents()
+            highlight_active()
+            # clicking outside the card hides the overlay
+            def on_overlay_click(e):
+                if e.widget is overlay_bg:
+                    overlay_bg.place_forget()
+            overlay_bg.bind("<Button-1>", on_overlay_click)
+
+    # key bindings
+    root.bind("<Control-k>", toggle_overlay)
+    root.bind("<Control-K>", toggle_overlay)
+    root.bind("<Escape>", lambda e: overlay_bg.place_forget())
+    root.bind("<Control-n>", lambda e: new_transaction(username, Dashboard, content_frame, fill_topbar, topbar) if active_tab=="transactions" else None)
+    root.bind("<Control-N>", lambda e: new_transaction(username, Dashboard, content_frame, fill_topbar, topbar) if active_tab=="transactions" else None)
+    root.bind("<Control-Delete>", lambda e: current_delete_transaction() if active_tab=="transactions" and current_delete_transaction else None)
 
     root.mainloop()
