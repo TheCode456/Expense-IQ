@@ -62,10 +62,6 @@ def Dashboard(content_frame,username):
     expense_frame.place(relwidth=0.475,relheight=0.475,relx=0.025,y=16)
     ctk.CTkLabel(expense_frame,text="Expenses",font=(fontfamily,28,"bold"),text_color=DARK["text"]).pack(padx=20,pady=10,anchor="w")
     user_json=open_user_json(username)
-    expense_value=user_json["budget"].get("current_spent",0)
-    average_expense_value=expense_value/(get_total_days()-get_days_remaining_in_month())
-    expense_value_label=ctk.CTkLabel(expense_frame,text=expense_value)
-    expense_value_label.pack()
 
     savingsCard=ctk.CTkFrame(content_frame,fg_color=DARK["card"],corner_radius=24,border_width=1,border_color=GREEN_BORDER)
     savingsCard.place(relwidth=0.475,relheight=0.47,relx=0.5,y=16)
