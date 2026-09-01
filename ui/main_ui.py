@@ -98,6 +98,9 @@ def Dashboard(content_frame,username):
     )
     view_all_btn.pack(side="right")
 
+    transactions=user_json["data"]["transactions"]
+    currency=user_json["profile"]["currency"]
+
     if not transactions or transactions==[{}] or all(not t for t in transactions):
         ctk.CTkLabel(
             transaction_frame,
