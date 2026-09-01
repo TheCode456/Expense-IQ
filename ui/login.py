@@ -44,7 +44,7 @@ def login_window(on_login):
             SignupFrame.configure(fg_color=LIGHT["frame"])
             notebook.configure(fg_color=LIGHT["bg"],bg_color=LIGHT["bg"],segmented_button_fg_color=LIGHT["frame"])
             icon = ctk.CTkImage(light_image=lightimg,dark_image=lightimg,size=(50, 50))
-            modeBtn.configure(bg_color="transparent",width=0,fg_color=LIGHT["bg"],image=icon,hover_color="#cccccc")
+            modeBtn.configure(bg_color="transparent",width=0,fg_color=LIGHT["bg"],image=icon,hover_color=LIGHT["card"])
             title1["text_color"]=LIGHT["text"]
             title2["text_color"]=LIGHT["text"]
             # for i in range(len(user_label_list)):
@@ -84,8 +84,8 @@ def login_window(on_login):
     notebook = ctk.CTkTabview(root,fg_color="transparent",bg_color="transparent",corner_radius=0)
     notebook.configure(
         segmented_button_fg_color=(LIGHT["frame"], DARK["frame"]),
-        segmented_button_selected_color=("blue", "#9b59b6"),
-        segmented_button_selected_hover_color=("blue", "#8e44ad")
+        segmented_button_selected_color=PRIMARY,
+        segmented_button_selected_hover_color=PRIMARY_HOVER
     )
     notebook.pack(expand=True, fill="both")
 
@@ -120,7 +120,7 @@ def login_window(on_login):
     for i in range(2,len(users)+2):
         LoginFrame.rowconfigure(i-1,weight=1,uniform="a")
         ctk.CTkLabel(LoginFrame,text=usernames[i-2],font=("Arial",14)).grid(row=i,column=0,pady=10)
-        ctk.CTkButton(LoginFrame,text="Login",font=("Arial",14,"bold"),fg_color=BLUE_BORDER,hover_color=INFO,text_color="#4c4f69",command=lambda u=users[i-2]:on_click(u) ).grid(row=i,column=1,pady=10)
+        ctk.CTkButton(LoginFrame,text="Login",font=("Arial",14,"bold"),fg_color=BLUE_BORDER,hover_color=INFO,text_color=DARK["text"],command=lambda u=users[i-2]:on_click(u) ).grid(row=i,column=1,pady=10)
 
     bottom_frame=ctk.CTkFrame(loginTab,fg_color=DARK["frame"],bg_color="transparent",corner_radius=0)
     bottom_frame.pack(side="bottom",fill="x",ipady=5)
@@ -167,7 +167,7 @@ def login_window(on_login):
 
     def checkmatch():
         check_user_exist(username_entry,info)
-        if password_entry.get()==conform_password_entry.get() and password_entry.get()!="Password" and username_entry.cget("border_color")=="#94d3a2":
+        if password_entry.get()==conform_password_entry.get() and password_entry.get()!="Password" and username_entry.cget("border_color")==GREEN_BORDER:
             signUpBtn.configure(state="enabled",cursor="hand2")
             animate_signup_btn()
         else:
@@ -206,7 +206,7 @@ def login_window(on_login):
         if done:
             main_ui(username,"dark",root,remeber_status.get())
 
-    signUpBtn=ctk.CTkButton(SignupFrame,text="Sign UP",text_color="#000000",text_color_disabled="#4c4f69",fg_color=LIGHT["primary"],hover_color="#74a8f0",cursor="hand2",corner_radius=5,width=200,height=30,border_width=2,font=("Arial",14,"bold"),state="disabled",command=lambda:signUp(username_entry.get(),password_entry.get()))
+    signUpBtn=ctk.CTkButton(SignupFrame,text="Sign UP",text_color=DARK["bg"],text_color_disabled=DARK["subtext"],fg_color=LIGHT["primary"],hover_color=INFO,cursor="hand2",corner_radius=5,width=200,height=30,border_width=2,font=("Arial",14,"bold"),state="disabled",command=lambda:signUp(username_entry.get(),password_entry.get()))
 
     ctk.CTkButton(SignupFrame,text="Already have an account? Sign In",font=("Arial",11),text_color=DARK["subtext"],fg_color="transparent",hover_color=DARK["frame"],cursor="hand2",corner_radius=5,border_width=0,command=lambda:notebook.set("     Login     ")).pack(side="bottom")
 

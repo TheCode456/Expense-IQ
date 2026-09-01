@@ -222,14 +222,92 @@ def transactions_tab(content_frame,user):
     clear_content(content_frame)
     data=open_user_json(user)
     transactions=data["data"]["transactions"]
-    
-    if not transactions or (len(transactions) == 1 and not transactions[0]):
-        ctk.CTkLabel(content_frame,text="No Transactions").pack()
-    else:
 
+    if not transactions or (len(transactions) == 1 and not transactions[0]):
+        # Empty state - centered and minimal
+        empty_container=ctk.CTkFrame(content_frame,fg_color="transparent")
+        empty_container.place(anchor="center",relx=0.5,rely=0.5)
+
+        ctk.CTkLabel(
+            empty_container,
+            text="No Transactions Yet",
+            font=(fontfamily,20,"bold"),
+            text_color=DARK["subtext"]
+        ).pack(pady=(0,20))
+
+        ctk.CTkButton(
+            empty_container,
+            text="+ Add Your First Transaction",
+            width=220,
+            height=45,
+            corner_radius=10,
+            fg_color=SUCCESS,
+            hover_color=SUCCESS,
+            text_color=DARK["bg"],
+            font=(fontfamily,14,"bold"),
+            command=lambda:new_transaction(user,Dashboard,content_frame,fill_topbar,topbar)
+        ).pack()
+    else:
         rows = len(transactions)
-        table_frame=ctk.CTkScrollableFrame(content_frame,fg_color=DARK["card"])
-        table_frame.pack(expand=True,fill="both")
+
+        # Zero-waste table container - every pixel counts
+        table_container=ctk.CTkFrame(content_frame,fg_color=DARK["card"],corner_radius=12)
+        table_container.pack(expand=True,fill="both",padx=20,pady=20)
+
+        # Ultra-compact header - 42px total height
+        header_row=ctk.CTkFrame(table_container,fg_color="transparent",height=42)
+        header_row.pack(fill="x",padx=12,pady=(8,0))
+        header_row.pack_propagate(False)
+
+        # Left: Transaction count
+        ctk.CTkLabel(
+            header_row,
+            text=f"{len(transactions)} Transactions",
+            font=(fontfamily,14,"bold"),
+            text_color=DARK["text"]
+        ).pack(side="left",pady=9)
+
+        # Right: Ultra-compact action pills
+        actions=ctk.CTkFrame(header_row,fg_color="transparent")
+        actions.pack(side="right",pady=9)
+
+        # Delete button (appears on selection with count)
+        delete_btn=ctk.CTkButton(
+            actions,
+            text="Delete",
+            width=70,
+            height=28,
+            corner_radius=6,
+            fg_color=DARK["frame"],
+            hover_color=DANGER,
+            text_color=DARK["subtext"],
+            font=(fontfamily,11),
+            border_width=1,
+            border_color=DARK["border"],
+            command=lambda:delete_transaction(user)
+        )
+
+        # New button - proper dark text contrast
+        new_btn=ctk.CTkButton(
+            actions,
+            text="+ New",
+            width=75,
+            height=28,
+            corner_radius=6,
+            fg_color=SUCCESS,
+            hover_color="#93d98e",
+            text_color=DARK["bg"],
+            font=(fontfamily,11,"bold"),
+            command=lambda:new_transaction(user,Dashboard,content_frame,fill_topbar,topbar)
+        )
+        new_btn.pack(side="right")
+
+        # Hair-thin divider (visual only, no spacing)
+        ctk.CTkFrame(table_container,fg_color=DARK["border"],height=1).pack(fill="x",padx=12,pady=(6,0))
+
+        # Maximum space table - absolutely zero wasted padding
+        table_frame=ctk.CTkScrollableFrame(table_container,fg_color="transparent")
+        table_frame.pack(expand=True,fill="both",padx=6,pady=(4,6))
         table_frame.rowconfigure(rows,uniform="a")
         table_frame.columnconfigure(0,weight=1,uniform="a")
 
@@ -246,13 +324,21 @@ def transactions_tab(content_frame,user):
             if selected[0]==None:
                 selected[0]=e
                 selected[1]=ID
+                # Show delete button with selection indicator - minimal spacing
+                delete_btn.configure(
+                    text="Delete",
+                    fg_color=DANGER,
+                    text_color=DARK["bg"],
+                    border_width=0
+                )
+                delete_btn.pack(side="right",padx=(0,6))
             else:
                 selected[0].configure(border_color=DARK["card"])
                 selected[0]=e
                 selected[1]=ID
             e.configure(border_color=PRIMARY)
 
-        # Table generation -------------------------------------------------------------------------------------------------------------
+        # Table rows
         row_frame=[]
         for i in range(rows):
             txn = transactions[i]
@@ -261,7 +347,7 @@ def transactions_tab(content_frame,user):
             else:
                 color=GAIN_COLOR
 
-            row_frame.append(ctk.CTkFrame(table_frame,fg_color="transparent",border_width=1,border_color=DARK["card"])) #???? why append i should have used [i]=ctk.Frmae() ? "reason(main_ui.py - line 80).png"
+            row_frame.append(ctk.CTkFrame(table_frame,fg_color="transparent",border_width=1,border_color=DARK["card"]))
             row_frame[i].grid(row=i, column=0,columnspan=4, sticky="ew", padx=5, pady=5)
 
             row_frame[i].columnconfigure(0,weight=1,uniform="a")
@@ -269,11 +355,11 @@ def transactions_tab(content_frame,user):
             row_frame[i].columnconfigure(2,weight=3,uniform="a")
             row_frame[i].columnconfigure(3,weight=2,uniform="a")
             row_frame[i].columnconfigure(4,weight=3,uniform="a")
-            ctk.CTkLabel(row_frame[i], text=txn["id"]).grid(row=0, column=0, padx=5, pady=5)
-            ctk.CTkLabel(row_frame[i], text=txn["title"]).grid(row=0, column=1, padx=5, pady=5)
+            ctk.CTkLabel(row_frame[i], text=txn["id"],text_color=DARK["text"]).grid(row=0, column=0, padx=5, pady=5)
+            ctk.CTkLabel(row_frame[i], text=txn["title"],text_color=DARK["text"]).grid(row=0, column=1, padx=5, pady=5)
             ctk.CTkLabel(row_frame[i], text=txn["amount"],text_color=color).grid(row=0, column=2, padx=5, pady=5)
-            ctk.CTkLabel(row_frame[i], text=txn["date"]).grid(row=0, column=3, padx=5, pady=5)
-            ctk.CTkLabel(row_frame[i], text=txn["category"]).grid(row=0, column=4, padx=5, pady=5)
+            ctk.CTkLabel(row_frame[i], text=txn["date"],text_color=DARK["subtext"]).grid(row=0, column=3, padx=5, pady=5)
+            ctk.CTkLabel(row_frame[i], text=txn["category"],text_color=DARK["subtext"]).grid(row=0, column=4, padx=5, pady=5)
 
             row_frame[i].bind("<Enter>", lambda e,index=i: hover_item(row_frame[index]))
             row_frame[i].bind("<Button-1>", lambda e,index=i,ID=txn["id"]: select_item(row_frame[index],ID))
@@ -292,7 +378,7 @@ def transactions_tab(content_frame,user):
             if uid==None:
                 messagebox.showerror("No Transaction Selected","Please select a transaction to delete")
                 return
-            
+
             # Find and remove transaction
             for txn in transactions[:]:
                 if txn["id"]==uid:
@@ -300,19 +386,19 @@ def transactions_tab(content_frame,user):
                     deleted_expense=txn["type"]=="Expense"
                     transactions.remove(txn)
                     break
-            
+
             # Renumber all IDs
             for i in range(len(transactions)):
                 transactions[i]["id"]=i+1
 
             #updating userFile
-            data=open_user_json(user)                
+            data=open_user_json(user)
             data["data"]["transactions"]=transactions
             if deleted_expense:
                 data["data"]["balance"]+=deleted_amount
                 data["budget"]["current_spent"]-=deleted_amount
                 data["analytics"]["monthly_summary"]["Expense"]-=deleted_amount
-            if not deleted_expense: # deleted income
+            if not deleted_expense:
                 data["data"]["balance"]-=deleted_amount
                 data["analytics"]["monthly_summary"]["income"]-=deleted_amount
             write_json(f"data/users/{user}.json",data)
@@ -321,17 +407,9 @@ def transactions_tab(content_frame,user):
             messagebox.showinfo("Deleted",f"Transaction Deleted successfully\nid:{uid}")
             transactions_tab(content_frame,user)
 
-
         # expose delete action for global keybinds
         global current_delete_transaction
         current_delete_transaction = lambda: delete_transaction(user)
-
-
-        del_btn=ctk.CTkButton(content_frame,text="Delete ⮾",width=150,height=45,corner_radius=10,fg_color=DANGER,hover_color=WARNING,bg_color=DARK["card"],text_color=DARK["border"],command=lambda: delete_transaction(user))
-        del_btn.place(rely=1,relx=0.8,x=-50,y=-10,anchor="se")
-
-    new_btn=ctk.CTkButton(content_frame,text="New Transaction",width=200,height=45,corner_radius=10,fg_color=SUCCESS,hover_color=WARNING,bg_color=DARK["card"],text_color=DARK["border"],command=lambda :new_transaction(user,Dashboard,content_frame,fill_topbar,topbar))
-    new_btn.place(rely=1,relx=1,x=-45,y=-10,anchor="se")
     
 def budget_tab(content_frame, username):
     clear_content(content_frame)
@@ -760,10 +838,10 @@ def setting(content_frame, username, current_theme="dark"):
         height=45,
         corner_radius=10,
 
-        fg_color=DANGER,
-        hover_color="red",
-        border_color=RED_BORDER,
-        text_color=THEME["text"]
+        fg_color=WARNING,
+        hover_color=WARNING,
+        border_color=YELLOW_BORDER,
+        text_color=DARK["bg"]
     )
     reset_btn.pack(pady=10)
 
@@ -789,9 +867,9 @@ def setting(content_frame, username, current_theme="dark"):
         height=45,
         corner_radius=10,
 
-        fg_color="#b23930",
-        hover_color="red",
-        border_color=DANGER,
+        fg_color=DANGER,
+        hover_color=DANGER,
+        border_color=RED_BORDER,
         text_color=THEME["text"]
     )
     delete_btn.pack(pady=10)
@@ -801,7 +879,7 @@ def setting(content_frame, username, current_theme="dark"):
         messagebox.showinfo("Done","Now the user will not be automatically logged in")
         forgot_btn.configure(state="disabled")
 
-    forgot_btn=ctk.CTkButton(button_frame,text_color="#000000",text="Show Login Window",width=150,height=45,corner_radius=10,fg_color=WARNING,hover_color="orange",border_color=YELLOW_BORDER,command=forgot)
+    forgot_btn=ctk.CTkButton(button_frame,text="Show Login Window",width=150,height=45,corner_radius=10,fg_color=WARNING,hover_color=WARNING,border_color=YELLOW_BORDER,text_color=DARK["bg"],command=forgot)
     forgot_btn.pack(pady=10)
 
     if get_remember_default()["remember"]==1:
@@ -904,14 +982,14 @@ def main_ui(username,theme,login,remember):
     root.bind("<Control-W>", lambda e: [root.quit(), root.after(10, quit())])
 
     # overlay as a full-size Frame (single-window approach)
-    overlay_bg = ctk.CTkFrame(root, fg_color="#000000")
+    overlay_bg = ctk.CTkFrame(root, fg_color=DARK["bg"])
     overlay_bg.place_forget()
 
     # simulate translucency by using a dark background with lowered visual weight
     try:
-        overlay_bg.configure(fg_color=("#000000", DARK["bg"]))
+        overlay_bg.configure(fg_color=DARK["bg"])
     except Exception:
-        overlay_bg.configure(fg_color="#000000")
+        overlay_bg.configure(fg_color=DARK["bg"])
 
     overlay_card = ctk.CTkFrame(overlay_bg, fg_color=DARK["card"], corner_radius=16, border_width=1, border_color=DARK["border"]) 
     # center card inside overlay

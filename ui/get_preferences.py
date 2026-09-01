@@ -1,16 +1,17 @@
 import customtkinter as ctk
+from ui.theme import *
 
 # ---------------- COLORS ----------------
-BG = "#181825"
-SURFACE = "#1e1e2e"
-TEXT = "#cdd6f4"
-SUBTEXT = "#a6adc8"
-ACCENT = "#5865F2"       # blurple
-ACCENT_HOVER = "#4752C4" # darker hover
-ACCENT_PRESSED = "#3c45a5"
-GREEN = "#a6e3a1"
-BORDER = "#7f849c"
-DANGER  = "#f38ba8"
+BG = DARK["frame"]
+SURFACE = DARK["bg"]
+TEXT = DARK["text"]
+SUBTEXT = DARK["subtext"]
+ACCENT = PRIMARY
+ACCENT_HOVER = PRIMARY_HOVER
+ACCENT_PRESSED = PRIMARY_HOVER
+GREEN = SUCCESS
+BORDER = DARK["border"]
+DANGER = DANGER
 
 
 def centered_window(parent, width, height):
