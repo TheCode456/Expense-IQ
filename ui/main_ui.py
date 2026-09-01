@@ -58,22 +58,207 @@ def fill_topbar(username,topbar):
 
 def Dashboard(content_frame,username):
     clear_content(content_frame)
-    expense_frame=ctk.CTkFrame(content_frame,fg_color=DARK["frame"],corner_radius=24)
+
+    # Expense Card - Enhanced with glanceable stats
+    expense_frame=ctk.CTkFrame(content_frame,fg_color=DARK["frame"],corner_radius=24,border_color=RED_BORDER,border_width=1)
     expense_frame.place(relwidth=0.475,relheight=0.475,relx=0.025,y=16)
-    ctk.CTkLabel(expense_frame,text="Expense Frame",fg_color="red").pack(expand=True,fill="both")
+
+    # Title
+    ctk.CTkLabel(expense_frame,text="Expenses",font=(fontfamily,28,"bold"),text_color=DARK["text"]).pack(padx=20,pady=10,anchor="w")
+
+    # Get data
+    user_json=open_user_json(username)
+    expense_value=user_json["budget"].get("current_spent",0)
+    monthly_limit=user_json["budget"]["monthly_limit"]
+    currency=user_json["profile"]["currency"]
+
+    # Summary section - Large amount display
+    summary_frame=ctk.CTkFrame(expense_frame,fg_color="transparent")
+    summary_frame.pack(fill="x",padx=20,pady=(0,8))
+
+    amount_label=ctk.CTkLabel(
+        summary_frame,
+        text=f"{currency} {int(expense_value):,}",
+        font=(fontfamily,28,"bold"),
+        text_color=LOSS_COLOR
+    )
+    amount_label.pack(anchor="w")
+
+    # Subtitle: of monthly limit
+    limit_label=ctk.CTkLabel(
+        summary_frame,
+        text=f"of {currency} {int(monthly_limit):,} limit",
+        font=(fontfamily,12),
+        text_color=DARK["subtext"]
+    )
+    limit_label.pack(anchor="w",pady=(0,0))
+
+    # Quick Stats Section - Compact 2x2 grid
+    stats_container=ctk.CTkFrame(expense_frame,fg_color="transparent")
+    stats_container.pack(fill="x",padx=20,pady=(8,8))
+
+    # Calculate useful stats from ALL transactions
+    transactions=user_json["data"]["transactions"]
+    expenses=[t for t in transactions if t.get("type")=="Expense"]
+    expense_count=len(expenses)
+
+    days_remaining=get_days_remaining_in_month()
+    total_days=get_total_days()
+    days_passed=total_days-days_remaining
+
+    if days_passed>0:
+        daily_avg=expense_value/days_passed
+    else:
+        daily_avg=0
+
+    # Calculate category totals from scratch
+    category_totals={}
+    for exp in expenses:
+        cat=exp.get("category","Other")
+        amount=exp.get("amount",0)
+        category_totals[cat]=category_totals.get(cat,0)+amount
+
+    # Find top category
+    if category_totals:
+        top_category=max(category_totals,key=category_totals.get)
+        top_amount=category_totals[top_category]
+    else:
+        top_category="None"
+        top_amount=0
+
+    # Configure 2x2 grid
+    stats_container.columnconfigure(0,weight=1)
+    stats_container.columnconfigure(1,weight=1)
+
+    # Stat cards in 2x2 grid
+    stat1=ctk.CTkFrame(stats_container,fg_color=DARK["card_hover"],corner_radius=8)
+    stat1.grid(row=0,column=0,padx=(0,3),pady=3,sticky="ew")
+    ctk.CTkLabel(
+        stat1,
+        text=f"📊 Avg: {currency} {int(daily_avg):,}/day",
+        font=(fontfamily,11),
+        text_color=DARK["text"]
+    ).pack(pady=8,padx=10)
+
+    stat2=ctk.CTkFrame(stats_container,fg_color=DARK["card_hover"],corner_radius=8)
+    stat2.grid(row=0,column=1,padx=(3,0),pady=3,sticky="ew")
+    ctk.CTkLabel(
+        stat2,
+        text=f"📅 {days_remaining} days left",
+        font=(fontfamily,11),
+        text_color=DARK["text"]
+    ).pack(pady=8,padx=10)
+
+    stat3=ctk.CTkFrame(stats_container,fg_color=DARK["card_hover"],corner_radius=8)
+    stat3.grid(row=1,column=0,padx=(0,3),pady=3,sticky="ew")
+    ctk.CTkLabel(
+        stat3,
+        text=f"🏷️ {top_category}: {currency} {int(top_amount):,}",
+        font=(fontfamily,11),
+        text_color=DARK["text"]
+    ).pack(pady=8,padx=10)
+
+    stat4=ctk.CTkFrame(stats_container,fg_color=DARK["card_hover"],corner_radius=8)
+    stat4.grid(row=1,column=1,padx=(3,0),pady=3,sticky="ew")
+    ctk.CTkLabel(
+        stat4,
+        text=f"🧾 {expense_count} expense{'s' if expense_count!=1 else ''}",
+        font=(fontfamily,11),
+        text_color=DARK["text"]
+    ).pack(pady=8,padx=10)
+
+    # View Details button - smaller
+    view_details_btn=ctk.CTkButton(
+        expense_frame,
+        text="View Details →",
+        font=(fontfamily,12),
+        fg_color=PRIMARY,
+        hover_color=PRIMARY_HOVER,
+        corner_radius=8,
+        height=32,
+        command=lambda:transactions_tab(content_frame,username)
+    )
+    view_details_btn.pack(padx=20,pady=(8,12),fill="x")
 
     savingsCard=ctk.CTkFrame(content_frame,fg_color=DARK["card"],corner_radius=24,border_width=1,border_color=GREEN_BORDER)
     savingsCard.place(relwidth=0.475,relheight=0.47,relx=0.5,y=16)
 
-    transaction_frame=ctk.CTkFrame(content_frame,fg_color=DARK["frame"],corner_radius=24)
+    # Transaction Preview Section
+    transaction_frame=ctk.CTkFrame(content_frame,fg_color=DARK["frame"],corner_radius=24,border_width=1,border_color=DARK["border"])
     transaction_frame.place(relwidth=0.95,relheight=0.475,relx=0.025,rely=0.5)
-    user_json=open_user_json(username)
-    transactions=user_json["data"]["transactions"]
-    if transactions==[{}] or not transactions or all(not t for t in transactions):
-        ctk.CTkLabel(transaction_frame,text="No Transactions").place(anchor="center",relx=0.5,rely=0.5)
+
+    # Header with View All button
+    header_frame=ctk.CTkFrame(transaction_frame,fg_color="transparent")
+    header_frame.pack(fill="x",padx=20,pady=(15,10))
+
+    ctk.CTkLabel(
+        header_frame,
+        text="Recent Activity",
+        font=(fontfamily,24,"bold"),
+        text_color=DARK["text"]
+    ).pack(side="left")
+
+    view_all_btn=ctk.CTkButton(
+        header_frame,
+        text="View All →",
+        font=(fontfamily,12),
+        fg_color="transparent",
+        hover_color=DARK["card_hover"],
+        text_color=PRIMARY,
+        width=100,
+        height=32,
+        command=lambda:transactions_tab(content_frame,username)
+    )
+    view_all_btn.pack(side="right")
+
+    if not transactions or transactions==[{}] or all(not t for t in transactions):
+        ctk.CTkLabel(
+            transaction_frame,
+            text="No transactions yet",
+            font=(fontfamily,16),
+            text_color=DARK["subtext"]
+        ).place(anchor="center",relx=0.5,rely=0.5)
     else:
-        preveiw_transactions=transactions[:5]
-    
+        # Show last 4 transactions max (reduced for performance)
+        preview_transactions=transactions[-4:] if len(transactions)>4 else transactions
+        preview_transactions=list(reversed(preview_transactions))
+
+        # Fixed container
+        container=ctk.CTkFrame(transaction_frame,fg_color="transparent")
+        container.pack(fill="both",expand=True,padx=20,pady=(0,15))
+
+        for txn in preview_transactions:
+            if not txn:
+                continue
+
+            # Simpler card - fewer nested frames
+            card=ctk.CTkFrame(container,fg_color=DARK["card"],corner_radius=8,height=50)
+            card.pack(fill="x",pady=3)
+            card.pack_propagate(False)
+
+            # Type indicator
+            type_color=GAIN_COLOR if txn["type"]=="Income" else LOSS_COLOR
+            indicator=ctk.CTkFrame(card,fg_color=type_color,width=4)
+            indicator.pack(side="left",fill="y")
+
+            # Title (left)
+            ctk.CTkLabel(
+                card,
+                text=txn["title"],
+                font=(fontfamily,12,"bold"),
+                text_color=DARK["text"],
+                anchor="w"
+            ).pack(side="left",padx=12)
+
+            # Amount (right)
+            amount_prefix="+" if txn["type"]=="Income" else "-"
+            ctk.CTkLabel(
+                card,
+                text=f"{amount_prefix}{currency} {int(txn['amount']):,}",
+                font=(fontfamily,13,"bold"),
+                text_color=type_color
+            ).pack(side="right",padx=12)
+
     # Savings Card
     def AnimateChange(increment,AnimateTarget,delay):
         nonlocal saved,savings_progressbar,saved_label,target
