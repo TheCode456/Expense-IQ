@@ -25,7 +25,6 @@ def has_valid_preferences(pref):
 
     return bool(str(pref.get("name", "")).strip())
 
-
 def get_user():
     usernames=os.listdir("data/users")
     users=[]
@@ -167,9 +166,12 @@ def forgot_user():
     data["username"]=""
     write_json("data/app.json",data)
 
-def get_category_values():
-    data=read_json("data/app.json")
-    return data["categories"]
+def get_category_values(type):
+    if type=="Expense":
+        data=read_json("data/app.json")
+        return data["categories"]
+    elif type=="Income":
+        return ["Salary","Income","Money Added"]
 
 def save_transaction(user,title,amount,type,category):
     data=open_user_json(user)
@@ -230,3 +232,51 @@ def change_savings(user,new_savings):
     data=open_user_json(user)
     data["analytics"]["monthly_summary"]["savings"]=new_savings
     write_json(f"data/users/{user}.json",data)
+
+def delete_transaction_data(user, transaction_id):
+    """
+    Delete a transaction and undo all its effects on balance, budget, and analytics.
+    Returns (success, message, deleted_uid) tuple.
+    """
+    data = open_user_json(user)
+    transactions = data["data"]["transactions"]
+
+    # Find the transaction
+    deleted_txn = None
+    for txn in transactions:
+        if txn["id"] == transaction_id:
+            deleted_txn = txn
+            break
+
+    if deleted_txn is None:
+        return False, "Transaction not found", None
+
+    deleted_amount = deleted_txn["amount"]
+    deleted_expense = deleted_txn["type"] == "Expense"  #work as if func
+
+    # Remove transaction
+    transactions.remove(deleted_txn)
+
+    # Renumber all IDs
+    for i in range(len(transactions)):
+        transactions[i]["id"] = i + 1
+
+    # Update user file - undo transaction effects
+    data["data"]["transactions"] = transactions
+
+    if deleted_expense:
+        data["data"]["balance"] += deleted_amount
+        data["budget"]["current_spent"] -= deleted_amount
+        data["analytics"]["monthly_summary"]["Expense"] -= deleted_amount
+    else:
+        data["data"]["balance"] -= deleted_amount
+        data["analytics"]["monthly_summary"]["income"] -= deleted_amount
+
+    write_json(f"data/users/{user}.json", data)
+
+    return True, f"Transaction Deleted successfully\nid:{transaction_id}", transaction_id
+
+def clear_empty_transactions(user):
+    transactions = open_user_json(user)["data"]["transactions"]
+    for transaction_id in reversed([txn["id"] for txn in transactions if txn["amount"] == 0]):
+        delete_transaction_data(user, transaction_id)

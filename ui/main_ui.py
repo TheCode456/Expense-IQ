@@ -2,7 +2,7 @@ import math
 import customtkinter as ctk
 from ui.new_transaction import new_transaction
 from ui.theme import *
-from utils.file_handler import change_savings, read_json, update_user_threshold,write_json,update_password,reset_userdata,delete,open_user_json,get_remember_default,forgot_user
+from utils.file_handler import change_savings, read_json, update_user_threshold,write_json,update_password,reset_userdata,delete,open_user_json,get_remember_default,forgot_user,clear_empty_transactions,delete_transaction_data
 from utils.date_calculator import *
 from tkinter import messagebox
 
@@ -146,8 +146,10 @@ def Dashboard(content_frame,username):
             ).pack(side="right",padx=12)
 
     # Savings Card
+    savings_animation_active = False
+
     def AnimateChange(increment,AnimateTarget,delay):
-        nonlocal saved,savings_progressbar,saved_label,target
+        nonlocal saved,savings_progressbar,saved_label,target,savings_animation_active
         saved = saved + increment
 
         saved_label.configure(text=f"Saved : {saved}")
@@ -163,9 +165,15 @@ def Dashboard(content_frame,username):
             saved = AnimateTarget
             saved_label.configure(text=f"Saved : {saved}")
             saved_label.configure(font=(fontfamily,24,"bold"))
+            savings_animation_active = False
+            addBtn.configure(state="normal")
             return
 
     def addSavings():
+        nonlocal savings_animation_active
+        if savings_animation_active:
+            return
+
         savingAmount=Value.get().strip() #strip to remove leading/trailing whitespace
         current_saved=saved
         try:
@@ -177,6 +185,9 @@ def Dashboard(content_frame,username):
         if amount <= 0:
             messagebox.showerror("Invalid Input","Please enter an amount greater than 0")
             return
+
+        savings_animation_active = True
+        addBtn.configure(state="disabled")
 
         # updating user json
         change_savings(username,saved+amount)
@@ -339,6 +350,7 @@ def transactions_tab(content_frame,user):
             e.configure(border_color=PRIMARY)
 
         # Table rows
+        empty_transaction_count=0
         row_frame=[]
         for i in range(rows):
             txn = transactions[i]
@@ -346,6 +358,9 @@ def transactions_tab(content_frame,user):
                 color=LOSS_COLOR
             else:
                 color=GAIN_COLOR
+
+            if txn["amount"]==0:
+                empty_transaction_count+=1
 
             row_frame.append(ctk.CTkFrame(table_frame,fg_color="transparent",border_width=1,border_color=DARK["card"]))
             row_frame[i].grid(row=i, column=0,columnspan=4, sticky="ew", padx=5, pady=5)
@@ -372,44 +387,27 @@ def transactions_tab(content_frame,user):
 
         def delete_transaction(user):
             uid=selected[1]
-            deleted_amount=0
-            deleted_expense=True
 
             if uid==None:
                 messagebox.showerror("No Transaction Selected","Please select a transaction to delete")
                 return
 
-            # Find and remove transaction
-            for txn in transactions[:]:
-                if txn["id"]==uid:
-                    deleted_amount=txn["amount"]
-                    deleted_expense=txn["type"]=="Expense"
-                    transactions.remove(txn)
-                    break
+            success, message, deleted_id = delete_transaction_data(user, uid)
 
-            # Renumber all IDs
-            for i in range(len(transactions)):
-                transactions[i]["id"]=i+1
-
-            #updating userFile
-            data=open_user_json(user)
-            data["data"]["transactions"]=transactions
-            if deleted_expense:
-                data["data"]["balance"]+=deleted_amount
-                data["budget"]["current_spent"]-=deleted_amount
-                data["analytics"]["monthly_summary"]["Expense"]-=deleted_amount
-            if not deleted_expense:
-                data["data"]["balance"]-=deleted_amount
-                data["analytics"]["monthly_summary"]["income"]-=deleted_amount
-            write_json(f"data/users/{user}.json",data)
-
-            fill_topbar(user,topbar)
-            messagebox.showinfo("Deleted",f"Transaction Deleted successfully\nid:{uid}")
-            transactions_tab(content_frame,user)
+            if success:
+                fill_topbar(user,topbar)
+                messagebox.showinfo("Deleted", message)
+                transactions_tab(content_frame,user)
+            else:
+                messagebox.showerror("Error", message)
 
         # expose delete action for global keybinds
         global current_delete_transaction
         current_delete_transaction = lambda: delete_transaction(user)
+
+        if empty_transaction_count!=0:
+            suggesstion_btn=ctk.CTkButton(header_row,text=f"Suggesion : Clear Empty Transactions ({empty_transaction_count})",fg_color=INFO,corner_radius=8,text_color=DARK["bg"],cursor="hand2",hover_color=BLUE_BORDER,command=lambda: [clear_empty_transactions(user),transactions_tab(content_frame,user)])
+            suggesstion_btn.pack(side="left",padx=20)
     
 def budget_tab(content_frame, username):
     clear_content(content_frame)
@@ -1058,8 +1056,8 @@ def main_ui(username,theme,login,remember):
     root.bind("<Control-k>", toggle_overlay)
     root.bind("<Control-K>", toggle_overlay)
     root.bind("<Escape>", lambda e: overlay_bg.place_forget())
-    root.bind("<Control-n>", lambda e: new_transaction(username, Dashboard, content_frame, fill_topbar, topbar) if active_tab=="transactions" else None)
-    root.bind("<Control-N>", lambda e: new_transaction(username, Dashboard, content_frame, fill_topbar, topbar) if active_tab=="transactions" else None)
+    root.bind("<Control-n>", lambda e: new_transaction(username, Dashboard, content_frame, fill_topbar, topbar))
+    root.bind("<Control-N>", lambda e: new_transaction(username, Dashboard, content_frame, fill_topbar, topbar))
     root.bind("<Control-Delete>", lambda e: current_delete_transaction() if active_tab=="transactions" and current_delete_transaction else None)
 
     root.mainloop()
